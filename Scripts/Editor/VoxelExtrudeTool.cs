@@ -81,24 +81,33 @@ namespace EvroDev.BacklotUtilities.Voxels
 
                 if (snappedDistance >= 1f)
                 {
-                    List<SelectableFace> facesToMove = GetFacesToMove();
-                    facesToMove[0].chunk.ExtrudeFaceGizmos(facesToMove);
+                    Dictionary<BacklotVoxelChunk, List<SelectableFace>> facesToMove = GetFacesToMove();
+                    foreach(BacklotVoxelChunk chunk in facesToMove.Keys)
+                    {
+                        chunk.ExtrudeFaceGizmos(facesToMove[chunk]);
+                    }
                 }
                 else if (snappedDistance <= -1)
                 {
-                    List<SelectableFace> facesToMove = GetFacesToMove();
-                    facesToMove[0].chunk.IntrudeFaceGizmos(facesToMove);
+                    Dictionary<BacklotVoxelChunk, List<SelectableFace>> facesToMove = GetFacesToMove();
+                    foreach (BacklotVoxelChunk chunk in facesToMove.Keys)
+                    {
+                        chunk.IntrudeFaceGizmos(facesToMove[chunk]);
+                    }
                 }
 
-                List<SelectableFace> GetFacesToMove()
+                Dictionary<BacklotVoxelChunk, List<SelectableFace>> GetFacesToMove()
                 {
-                    List<SelectableFace> facesToMove = new List<SelectableFace>();
+                    Dictionary<BacklotVoxelChunk, List<SelectableFace>> facesToMove = new ();
+
                     foreach (UnityEngine.Object obj in targets)
                     {
                         SelectableFace face = (SelectableFace)obj;
                         if (face.GetAxis() == movementAxis)
                         {
-                            facesToMove.Add(face);
+                            if (!facesToMove.ContainsKey(face.chunk))
+                                facesToMove.Add(face.chunk, new List<SelectableFace>());
+                            facesToMove[face.chunk].Add(face);
                         }
                     }
                     return facesToMove;
