@@ -23,6 +23,7 @@ namespace EvroDev.BacklotUtilities.Voxels
     {
         public Material material;
         public string surfaceDataCard;
+        public int id;
     }
 
     public class BacklotVoxelChunk : MonoBehaviour
@@ -394,7 +395,8 @@ namespace EvroDev.BacklotUtilities.Voxels
                             SurfaceDescription surfaceDescription = new SurfaceDescription()
                             {
                                 material = faceMat,
-                                surfaceDataCard = currentVoxel.GetSurface((FaceDirection)facingDirection).Barcode.ID
+                                surfaceDataCard = currentVoxel.GetSurface((FaceDirection)facingDirection).Barcode.ID,
+                                id = currentVoxel.GetDiscriminator((FaceDirection)facingDirection)
                             };
 
                             // WHAT THE FUCK :fireEmoji:
@@ -780,6 +782,7 @@ namespace EvroDev.BacklotUtilities.Voxels
         [SerializeField]
         private byte _overrideFacesByte = new();
         private DataCardReference<SurfaceDataCard>[] faceSurfaces = new DataCardReference<SurfaceDataCard>[6];
+        private int[] discriminators = new int[6];
         //private bool[] _overrideFaces = new bool[6];
 
         public void SetOverrideFace(FaceDirection dir, bool enabled)
@@ -821,6 +824,16 @@ namespace EvroDev.BacklotUtilities.Voxels
         public DataCardReference<SurfaceDataCard> GetSurface(FaceDirection dir)
         {
             return faceSurfaces[(int)dir];
+        }
+
+        public void SetDiscriminator(FaceDirection dir, int disc)
+        {
+            discriminators[(int)dir] = disc;
+        }
+
+        public int GetDiscriminator(FaceDirection dir)
+        {
+            return discriminators[(int)dir];
         }
     }
 
