@@ -748,11 +748,9 @@ namespace EvroDev.BacklotUtilities.Voxels
                     if(discriminateType)
                     {
                         if(targetVoxel.GetMaterial(targetDirection) != current.GetMaterial(targetDirection)) continue;
-                        Debug.Log(current.GetSurface(targetDirection));
                         string barcode1 = targetVoxel.GetSurface(targetDirection).Barcode.ID;
                         string barcode2 = current.GetSurface(targetDirection).Barcode.ID;
                         if(barcode1 != barcode2) continue;
-                        Debug.Log("R");
                         if(targetVoxel.GetOverrideFace(targetDirection) != current.GetOverrideFace(targetDirection)) continue;
                     }
 
