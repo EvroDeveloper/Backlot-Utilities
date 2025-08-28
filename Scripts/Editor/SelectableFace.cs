@@ -238,6 +238,7 @@ namespace EvroDev.BacklotUtilities.Voxels
             if (outpt.material == null)
                 outpt.material = BacklotManager.DefaultGridMaterial();
 
+            outpt.IsEmpty = voxel.GetOverrideFace(direction);
 
             var surfData = voxel.GetSurface(direction);
             if (surfData != null && surfData.IsValid())
@@ -246,8 +247,6 @@ namespace EvroDev.BacklotUtilities.Voxels
                 voxel.SetSurface(direction, outpt.surfaceData);
 
                 outpt.chunk = chunk;
-
-            outpt.OnDrawGizmos();
 
             return outpt;
         }

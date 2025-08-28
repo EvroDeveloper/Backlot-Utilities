@@ -679,12 +679,12 @@ namespace EvroDev.BacklotUtilities.Voxels
 #endif
         }
 
-        public void FloodFillSelect(List<SelectableFace> startingFaces)
+        public void FloodFillSelect(List<SelectableFace> startingFaces, bool discriminateType = false)
         {
             List<GameObject> newFounds = new List<GameObject>();
             foreach(SelectableFace face in startingFaces)
             {
-                foreach (VoxelFaceSelection selection in FloodFillVoxels(face.voxelPosition, face.FaceDirection))
+                foreach (VoxelFaceSelection selection in FloodFillVoxels(face.voxelPosition, face.FaceDirection, discriminateType))
                 {
                     var matching = GetComponentsInChildren<SelectableFace>().Where(p => p.voxelPosition == selection.position && p.FaceDirection == selection.direction).ToArray();
                     if (matching.Length > 0)
@@ -699,13 +699,14 @@ namespace EvroDev.BacklotUtilities.Voxels
             }
         }
 
-        List<VoxelFaceSelection> FloodFillVoxels(Vector3Int startingFace, FaceDirection targetDirection)
+        List<VoxelFaceSelection> FloodFillVoxels(Vector3Int startingFace, FaceDirection targetDirection, bool discriminateType = false)
         {
             List<VoxelFaceSelection> outputFaces = new List<VoxelFaceSelection>();
             HashSet<Vector3Int> visitedVoxels = new HashSet<Vector3Int>();
             Queue<Vector3Int> Q = new Queue<Vector3Int>();
 
             Q.Enqueue(startingFace);
+            Voxel targetVoxel = SafeSampleVoxel(startingFace.x, startingFace.y, startingFace.z);
             visitedVoxels.Add(startingFace);
 
             while(Q.Count > 0)
@@ -743,6 +744,17 @@ namespace EvroDev.BacklotUtilities.Voxels
 
                     if(current.IsEmpty) continue;
                     if(visitedVoxels.Contains(neighborPos)) continue; 
+
+                    if(discriminateType)
+                    {
+                        if(targetVoxel.GetMaterial(targetDirection) != current.GetMaterial(targetDirection)) continue;
+                        Debug.Log(current.GetSurface(targetDirection));
+                        string barcode1 = targetVoxel.GetSurface(targetDirection).Barcode.ID;
+                        string barcode2 = current.GetSurface(targetDirection).Barcode.ID;
+                        if(barcode1 != barcode2) continue;
+                        Debug.Log("R");
+                        if(targetVoxel.GetOverrideFace(targetDirection) != current.GetOverrideFace(targetDirection)) continue;
+                    }
 
                     Voxel inTheFace = SafeSampleVoxel(faceNeighbor.x, faceNeighbor.y, faceNeighbor.z);
                     if(inTheFace.IsEmpty)

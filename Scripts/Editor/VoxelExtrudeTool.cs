@@ -43,11 +43,20 @@ namespace EvroDev.BacklotUtilities.Voxels
             GUILayout.BeginArea(new Rect(guiPosition.x - 60, guiPosition.y - 30, 120, 60), GUI.skin.box);
             GUILayout.Label("Custom Tools");
 
-            if (GUILayout.Button("Flood Fill"))
+            if (GUILayout.Button("Flood Fill (Direction)"))
             {
                 foreach (UnityEngine.Object obj in targets)
                 {
-                    ((SelectableFace)obj).chunk.FloodFillSelect(new List<SelectableFace>() { (SelectableFace)obj });
+                    ((SelectableFace)obj).chunk.FloodFillSelect(new List<SelectableFace>() { (SelectableFace)obj }, false);
+                    // line above is killing m
+                }
+            }
+
+            if (GUILayout.Button("Flood Fill (Type)"))
+            {
+                foreach (UnityEngine.Object obj in targets)
+                {
+                    ((SelectableFace)obj).chunk.FloodFillSelect(new List<SelectableFace>() { (SelectableFace)obj }, true);
                     // line above is killing m
                 }
             }
