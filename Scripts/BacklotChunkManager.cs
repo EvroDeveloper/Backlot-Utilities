@@ -187,6 +187,82 @@ namespace EvroDev.BacklotUtilities.Voxels
             return chunk;
         }
 
+        public void ShiftSelect(SelectableFace newFace)
+        {
+            foreach (GameObject gobj in Selection.gameObjects)
+            {
+                if (gobj.TryGetComponent(out SelectableFace face1) && face1 != newFace)
+                {
+                    SelectRectBetweenTwo(face1, newFace);
+                }
+            }
+        }
+
+        private void SelectRectBetweenTwo(SelectableFace face1, SelectableFace face2)
+        {
+            BacklotVoxelChunk chunk1 = face1.chunk;
+            BacklotVoxelChunk chunk2 = face2.chunk;
+
+            Vector3Int chunkOffset = Vector3Int.zero;
+
+            if (chunk1 != chunk2)
+            {
+                chunkOffset = (GetChunkPos(chunk2) - GetChunkPos(chunk1)) * ChunkSize;
+            }
+
+            chunkOffset += face2.voxelPosition - face1.voxelPosition;
+
+            Vector3Int chunkDirection = chunkOffset;
+            chunkDirection.Clamp(Vector3Int.one * -1, Vector3Int.one);
+            if (chunkDirection.x == 0) chunkDirection.x = 1;
+            if (chunkDirection.y == 0) chunkDirection.y = 1;
+            if (chunkDirection.z == 0) chunkDirection.z = 1;
+
+            List<ManagerFaceSelection> output = new();
+
+            for (int x = 0; Mathf.Abs(x) <= Mathf.Abs(chunkOffset.x); x += chunkDirection.x)
+            {
+                for (int y = 0; Mathf.Abs(y) <= Mathf.Abs(chunkOffset.y); y += chunkDirection.y)
+                {
+                    for (int z = 0; Mathf.Abs(z) <= Mathf.Abs(chunkOffset.z); z += chunkDirection.z)
+                    {
+                        // int complexDialogResult = EditorUtility.DisplayDialogComplex("Dialog", $"Local position from Start: ({x}, {y}, {z})", "Next", "Cancel", "Skip");
+                        // if (complexDialogResult == 1)
+                        // {
+                        //     return;
+                        // }
+                        var offset = face1.voxelPosition + new Vector3Int(x, y, z);
+                        var cuhChunk = GetRelativeChunk(chunk1, offset);
+
+                        var testVoxel = GetVoxel(cuhChunk.Item1, cuhChunk.Item2);
+                        if (testVoxel.IsEmpty)
+                        {
+                            continue;
+                        }
+
+                        output.Add(new ManagerFaceSelection(cuhChunk.Item1, cuhChunk.Item2, face1.FaceDirection));
+                    }
+                }
+            }
+
+            List<GameObject> newFounds = new List<GameObject>();
+            foreach (ManagerFaceSelection selection in output)
+            {
+                var matching = GetComponentsInChildren<SelectableFace>().Where(p => p.chunk == selection.chunk && p.voxelPosition == selection.localPosition && p.FaceDirection == selection.direciton).ToArray();
+                if (matching.Length > 0)
+                {
+                    newFounds.Add(matching[0].gameObject);
+                }
+            }
+            if (newFounds.Count != 0)
+            {
+                EditorApplication.delayCall += () =>
+                {
+                    Selection.objects = Selection.gameObjects.Concat(newFounds).Distinct().ToArray();
+                };
+            }
+        }
+
         public void FloodFillSelect(List<SelectableFace> startingFaces, bool discriminateType = false)
         {
             List<GameObject> newFounds = new List<GameObject>();
