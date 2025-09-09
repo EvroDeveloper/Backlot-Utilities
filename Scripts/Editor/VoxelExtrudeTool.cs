@@ -47,7 +47,7 @@ namespace EvroDev.BacklotUtilities.Voxels
             {
                 foreach (UnityEngine.Object obj in targets)
                 {
-                    ((SelectableFace)obj).chunk.FloodFillSelect(new List<SelectableFace>() { (SelectableFace)obj }, false);
+                    ((SelectableFace)obj).chunk.manager.FloodFillSelect(new List<SelectableFace>() { (SelectableFace)obj }, false);
                     // line above is killing m
                 }
             }
@@ -56,7 +56,7 @@ namespace EvroDev.BacklotUtilities.Voxels
             {
                 foreach (UnityEngine.Object obj in targets)
                 {
-                    ((SelectableFace)obj).chunk.FloodFillSelect(new List<SelectableFace>() { (SelectableFace)obj }, true);
+                    ((SelectableFace)obj).chunk.manager.FloodFillSelect(new List<SelectableFace>() { (SelectableFace)obj }, true);
                     // line above is killing m
                 }
             }

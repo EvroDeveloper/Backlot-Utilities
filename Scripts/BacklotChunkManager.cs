@@ -1,9 +1,11 @@
 #if UNITY_EDITOR
 using EvroDev.BacklotUtilities.Extensions;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using SLZ.Marrow.SceneStreaming;
 
 namespace EvroDev.BacklotUtilities.Voxels
 {
@@ -22,9 +24,9 @@ namespace EvroDev.BacklotUtilities.Voxels
 
         public void GenerateChangedChunks()
         {
-            foreach(var chunkHolder in chunks)
+            foreach (var chunkHolder in chunks)
             {
-                if(chunkHolder.chunk.isDirty)
+                if (chunkHolder.chunk.isDirty)
                 {
                     chunkHolder.chunk.GenerateBacklots();
                 }
@@ -33,9 +35,9 @@ namespace EvroDev.BacklotUtilities.Voxels
 
         private void OnValidate()
         {
-            if(visualizationMode == VisualizationMode.Gizmos)
+            if (visualizationMode == VisualizationMode.Gizmos)
             {
-                foreach(var realChunk in chunks)
+                foreach (var realChunk in chunks)
                 {
                     var chunk = realChunk.chunk;
                     if (chunk.backlotsParent != null)
@@ -49,7 +51,7 @@ namespace EvroDev.BacklotUtilities.Voxels
                 foreach (var realChunk in chunks)
                 {
                     var chunk = realChunk.chunk;
-                    if(chunk.backlotsParent != null)
+                    if (chunk.backlotsParent != null)
                         chunk.backlotsParent.gameObject.SetActive(true);
 
                     EditorApplication.delayCall += () =>
@@ -70,9 +72,9 @@ namespace EvroDev.BacklotUtilities.Voxels
         /// </summary>
         private bool ChunkAt(Vector3Int pos, out BacklotVoxelChunk outChunk)
         {
-            foreach(var chunk in chunks)
+            foreach (var chunk in chunks)
             {
-                if(chunk.pos == pos)
+                if (chunk.pos == pos)
                 {
                     outChunk = chunk.chunk;
                     return true;
@@ -84,9 +86,9 @@ namespace EvroDev.BacklotUtilities.Voxels
 
         private Vector3Int GetChunkPos(BacklotVoxelChunk chunk)
         {
-            foreach(var chunkPos in chunks)
+            foreach (var chunkPos in chunks)
             {
-                if(chunkPos.chunk == chunk)
+                if (chunkPos.chunk == chunk)
                 {
                     return chunkPos.pos;
                 }
@@ -107,6 +109,11 @@ namespace EvroDev.BacklotUtilities.Voxels
             else (realChunk, realPos) = GetRelativeChunk(chunk, position);
 
             return realChunk.SafeSampleVoxel(realPos.x, realPos.y, realPos.z);
+        }
+
+        public Voxel GetVoxel(BacklotVoxelChunk chunk, int x, int y, int z)
+        {
+            return GetVoxel(chunk, new Vector3Int(x, y, z));
         }
 
         /// <summary>
@@ -130,46 +137,22 @@ namespace EvroDev.BacklotUtilities.Voxels
             Vector3Int chunkPos = GetChunkPos(chunk);
             Vector3Int originalPosition = position;
 
-            if(position.x < 0)
-            {
-                chunkPos -= new Vector3Int(1, 0, 0);
-                position += new Vector3Int(ChunkSize, 0, 0);
-            }
-            else if(position.x >= ChunkSize)
-            {
-                chunkPos += new Vector3Int(1, 0, 0);
-                position -= new Vector3Int(ChunkSize, 0, 0);
-            }
-            if(position.y < 0)
-            {
-                chunkPos -= new Vector3Int(0, 1, 0);
-                position += new Vector3Int(0, ChunkSize, 0);
-            }
-            else if(position.y >= ChunkSize)
-            {
-                chunkPos += new Vector3Int(0, 1, 0);
-                position -= new Vector3Int(0, ChunkSize, 0);
-            }
-            if(position.z < 0)
-            {
-                chunkPos -= new Vector3Int(0, 0, 1);
-                position += new Vector3Int(0, 0, ChunkSize);
-            }
-            else if(position.z >= ChunkSize)
-            {
-                chunkPos += new Vector3Int(0, 0, 1);
-                position -= new Vector3Int(0, 0, ChunkSize);
-            }
+            int xChunkDist = (position.x - ((position.x >> 31) & ChunkSize)) / ChunkSize;
+            int yChunkDist = (position.y - ((position.y >> 31) & ChunkSize)) / ChunkSize;
+            int zChunkDist = (position.z - ((position.z >> 31) & ChunkSize)) / ChunkSize;
 
-            if(originalPosition == position)
+            chunkPos += new Vector3Int(xChunkDist, yChunkDist, zChunkDist);
+            position -= new Vector3Int(xChunkDist, yChunkDist, zChunkDist) * ChunkSize;
+
+            if (originalPosition == position)
             {
                 return (chunk, originalPosition);
             }
-            else if(ChunkAt(chunkPos, out var newChunk))
+            else if (ChunkAt(chunkPos, out var newChunk))
             {
                 return (newChunk, position);
             }
-            else if(createIfNull)
+            else if (createIfNull)
             {
                 return (CreateNewChunk(chunkPos), position);
             }
@@ -193,14 +176,107 @@ namespace EvroDev.BacklotUtilities.Voxels
             chunk.manager = this;
             chunk.ChunkSize = ChunkSize;
 
-            chunks.Add(new PosToChunk(){ 
-                pos = chunkPosition, 
+            chunks.Add(new PosToChunk()
+            {
+                pos = chunkPosition,
                 chunk = chunk
             });
 
             chunk.Regen();
 
             return chunk;
+        }
+
+        public void FloodFillSelect(List<SelectableFace> startingFaces, bool discriminateType = false)
+        {
+            List<GameObject> newFounds = new List<GameObject>();
+            foreach (SelectableFace face in startingFaces)
+            {
+                foreach (ManagerFaceSelection selection in FloodFillFaces(face, discriminateType))
+                {
+                    var matching = GetComponentsInChildren<SelectableFace>().Where(p => p.chunk == selection.chunk && p.voxelPosition == selection.localPosition && p.FaceDirection == selection.direciton).ToArray();
+                    if (matching.Length > 0)
+                    {
+                        newFounds.Add(matching[0].gameObject);
+                    }
+                }
+            }
+            if (newFounds.Count != 0)
+            {
+                Selection.objects = Selection.gameObjects.Concat(newFounds).Distinct().ToArray();
+            }
+        }
+
+        public ManagerFaceSelection[] FloodFillFaces(SelectableFace startingFace, bool discriminateType = false)
+        {
+            List<ManagerFaceSelection> outputFaces = new();
+
+            var targetDirection = startingFace.FaceDirection;
+            var relativeChunk = startingFace.chunk;
+
+            HashSet<Vector3Int> visitedVoxels = new HashSet<Vector3Int>(); // Do Everything in relation to the starting chunk. Ugh
+            Queue<Vector3Int> Q = new Queue<Vector3Int>();
+
+            Q.Enqueue(startingFace.voxelPosition);
+            Voxel targetVoxel = startingFace.chunk.SafeSampleVoxel(startingFace.voxelPosition.x, startingFace.voxelPosition.y, startingFace.voxelPosition.z);
+            visitedVoxels.Add(startingFace.voxelPosition);
+
+            while(Q.Count > 0)
+            {
+                Vector3Int n = Q.Dequeue();
+                var cuhChunk = GetRelativeChunk(relativeChunk, n);
+                outputFaces.Add(new ManagerFaceSelection(cuhChunk.Item1, cuhChunk.Item2, targetDirection));
+
+                Vector3Int[] directions = targetDirection switch
+                {
+                    FaceDirection.Forward => new Vector3Int[] { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right },
+                    FaceDirection.Backward => new Vector3Int[] { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right },
+                    FaceDirection.Up => new Vector3Int[] { Vector3Int.forward, Vector3Int.back, Vector3Int.left, Vector3Int.right },
+                    FaceDirection.Down => new Vector3Int[] { Vector3Int.forward, Vector3Int.back, Vector3Int.left, Vector3Int.right },
+                    FaceDirection.Left => new Vector3Int[] { Vector3Int.up, Vector3Int.down, Vector3Int.forward, Vector3Int.back },
+                    FaceDirection.Right => new Vector3Int[] { Vector3Int.up, Vector3Int.down, Vector3Int.forward, Vector3Int.back },
+                    _ => new Vector3Int[0]
+                };
+
+                Vector3Int scanDirection = targetDirection switch
+                {
+                    FaceDirection.Forward => Vector3Int.forward,
+                    FaceDirection.Backward => Vector3Int.back,
+                    FaceDirection.Up => Vector3Int.up,
+                    FaceDirection.Down => Vector3Int.down,
+                    FaceDirection.Left => Vector3Int.left,
+                    FaceDirection.Right => Vector3Int.right,
+                    _ => Vector3Int.forward
+                };
+
+                foreach(Vector3Int direction in directions)
+                {
+                    Vector3Int neighborPos = n + direction;
+                    Vector3Int faceNeighbor = neighborPos + scanDirection;
+                    Voxel current = GetVoxel(relativeChunk, neighborPos.x, neighborPos.y, neighborPos.z);
+
+                    if(current.IsEmpty) continue;
+                    if(visitedVoxels.Contains(neighborPos)) continue; 
+
+                    if(discriminateType)
+                    {
+                        if(targetVoxel.GetMaterial(targetDirection) != current.GetMaterial(targetDirection)) continue;
+                        string barcode1 = targetVoxel.GetSurface(targetDirection).Barcode.ID;
+                        string barcode2 = current.GetSurface(targetDirection).Barcode.ID;
+                        if(barcode1 != barcode2) continue;
+                        if(targetVoxel.GetOverrideFace(targetDirection) != current.GetOverrideFace(targetDirection)) continue;
+                    }
+
+                    Voxel inTheFace = GetVoxel(relativeChunk, faceNeighbor.x, faceNeighbor.y, faceNeighbor.z);
+                    if(inTheFace.IsEmpty)
+                    {
+                        Q.Enqueue(neighborPos);
+                        visitedVoxels.Add(neighborPos);
+                    }
+                }
+            }
+
+            return outputFaces.ToArray();
         }
 
         void Reset()
@@ -218,6 +294,20 @@ namespace EvroDev.BacklotUtilities.Voxels
     {
         public Vector3Int pos;
         public BacklotVoxelChunk chunk;
+    }
+
+    public struct ManagerFaceSelection
+    {
+        public BacklotVoxelChunk chunk;
+        public Vector3Int localPosition;
+        public FaceDirection direciton;
+
+        public ManagerFaceSelection(BacklotVoxelChunk chunk, Vector3Int localPos, FaceDirection dir)
+        {
+            this.chunk = chunk;
+            localPosition = localPos;
+            direciton = dir;
+        }
     }
 }
 #endif
